@@ -2,7 +2,7 @@
 
 An end-to-end retail analytics project: raw data → SQL cleaning → interactive dashboard → business findings.
 
-**Live dashboard:** https://YOUR-USERNAME.github.io/superstore-sales-dashboard/
+**Live dashboard:** https://thummam.github.io/superstore-sales-dashboard/
 
 **Data:** Tableau "Sample – Superstore" (US office-supply retailer, Jan 2015 – Dec 2018, 9,994 order lines). It is the same dataset that is published on Kaggle.
 **Tools:** SQL (SQLite) for cleaning and analysis, and Python for loading and export. The dashboard is HTML/SVG, and the clean CSV is ready for Tableau or Power BI.
