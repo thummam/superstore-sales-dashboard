@@ -1,0 +1,4 @@
+# Rebuilt by sql/01_load_raw.py + sql/02_clean.sql
+data/superstore.db
+.DS_Store
+.claude/

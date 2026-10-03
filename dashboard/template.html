@@ -1,0 +1,422 @@
+<meta charset="utf-8">
+<title>Superstore Sales Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: findings first, one filter row, KPI strip, then a 2-column chart grid that stacks on phones */
+:root {
+  --bg: #f4f5f7; --surface: #ffffff; --ink: #14171a; --ink-2: #4f5761; --muted: #808892;
+  --line: #e2e5e9; --grid: #eceef1; --chip: #eef0f3;
+  --rev: #2a78d6; --pro: #1baf7a; --pos: #2a78d6; --neg: #e34948; --neg-ink: #b42d2c;
+  --focus: #2a78d6;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111315; --surface: #1a1d20; --ink: #f1f3f5; --ink-2: #b8bfc6; --muted: #7f8790;
+  --line: #2b3035; --grid: #24282c; --chip: #23272b;
+  --rev: #3987e5; --pro: #199e70; --pos: #3987e5; --neg: #e66767; --neg-ink: #f08a8a; --focus: #6da7ec;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #111315; --surface: #1a1d20; --ink: #f1f3f5; --ink-2: #b8bfc6; --muted: #7f8790;
+  --line: #2b3035; --grid: #24282c; --chip: #23272b;
+  --rev: #3987e5; --pro: #199e70; --pos: #3987e5; --neg: #e66767; --neg-ink: #f08a8a; --focus: #6da7ec;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 22px; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(26px, 4vw, 36px); font-weight: 800; font-stretch: 80%; letter-spacing: -0.01em; line-height: 1.1; }
+.lede { color: var(--ink-2); margin: 6px 0 0; max-width: 70ch; }
+.eyebrow { font-family: var(--f-display); font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Findings */
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.finding { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; }
+.finding h3 { font-size: 17px; font-weight: 700; font-stretch: 88%; line-height: 1.25; }
+.finding p { margin: 0; color: var(--ink-2); font-size: 13.5px; }
+.finding b { color: var(--ink); font-weight: 600; }
+.finding .loss { color: var(--neg-ink); font-weight: 600; }
+
+/* Filters */
+.filters { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 10px; border-bottom: 1px solid var(--line); }
+.fgroup { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.seg { display: inline-flex; background: var(--chip); border-radius: 8px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+.seg button { font: 500 13px var(--f-body); color: var(--ink-2); background: transparent; border: 0; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+.seg button:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.reset { font: 500 13px var(--f-body); color: var(--ink-2); background: none; border: 0; text-decoration: underline; cursor: pointer; padding: 4px; }
+
+/* KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.kpi { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; }
+.kpi .v { font-family: var(--f-display); font-size: 26px; font-weight: 700; font-stretch: 85%; font-variant-numeric: tabular-nums; }
+.kpi .d { font-size: 12.5px; color: var(--muted); }
+
+/* Charts */
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px 12px; display: grid; gap: 10px; min-width: 0; align-content: start; }
+.card.full { grid-column: 1 / -1; }
+.card h2 { font-size: 16.5px; font-weight: 700; font-stretch: 88%; }
+.card .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chart { position: relative; min-width: 0; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--ink-2); font-family: var(--f-body); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.chart .axis { fill: var(--muted); }
+.chart .gl { stroke: var(--grid); stroke-width: 1; }
+.chart .zero { stroke: var(--muted); stroke-width: 1; }
+.chart .hit { fill: transparent; cursor: default; }
+.chart .dim { opacity: .3; }
+details { font-size: 12.5px; color: var(--ink-2); }
+summary { cursor: pointer; color: var(--muted); width: max-content; }
+.tbl { overflow-x: auto; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+th { color: var(--muted); font-weight: 500; }
+.tip { position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,.14); min-width: 150px; max-width: 280px; }
+.tip .t { font-weight: 600; margin-bottom: 4px; }
+.tip .r { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+.tip .r span:first-child { color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.foot { color: var(--muted); font-size: 12.5px; display: grid; gap: 4px; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } .wrap { padding-inline: 16px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Superstore · US retail · Jan 2015 – Dec 2018</div>
+    <h1>Superstore Sales Dashboard</h1>
+    <p class="lede">$2.30M in sales across 9,994 order lines. The business is growing, but discounting and returns are eating into the profit. Three findings below, then the charts behind them.</p>
+  </header>
+
+  <section class="findings" aria-label="Key findings">
+    <article class="finding">
+      <div class="eyebrow">Finding 1 · Region</div>
+      <h3>Central is losing money because of discounting in Texas and Illinois</h3>
+      <p>Central has the weakest margin (<b>7.9%</b> vs <b>14.9%</b> in the West). Texas and Illinois give an average <b>37–39% discount</b> and together lost <span class="loss">$38.3K</span>. The other 11 Central states sell at full price, and every one of them is profitable.</p>
+    </article>
+    <article class="finding">
+      <div class="eyebrow">Finding 2 · Pricing</div>
+      <h3>Any discount above 20% loses money</h3>
+      <p>Lines discounted more than 20% brought in <b>$363K</b> of sales but lost <span class="loss">$135K</span>. Tables, Bookcases and Machines earn <b>+$46.5K</b> at full price and lose <span class="loss">$64.3K</span> when discounted, so they lose money overall.</p>
+    </article>
+    <article class="finding">
+      <div class="eyebrow">Finding 3 · Returns</div>
+      <h3>The West sells the most, and it also has 4× the return rate</h3>
+      <p><b>11.7%</b> of West orders come back, against about <b>3%</b> in every other region. That makes the West the source of <b>189 of the 296</b> returned orders (64%), even though it places only 32% of orders.</p>
+    </article>
+  </section>
+
+  <div class="filters" role="toolbar" aria-label="Filters">
+    <div class="fgroup"><span class="eyebrow">Year</span><div class="seg" id="f-year"></div></div>
+    <div class="fgroup"><span class="eyebrow">Region</span><div class="seg" id="f-region"></div></div>
+    <div class="fgroup"><span class="eyebrow">Category</span><div class="seg" id="f-category"></div></div>
+    <button class="reset" id="reset" type="button">Clear filters</button>
+  </div>
+
+  <section class="kpis" id="kpis" aria-label="Key figures"></section>
+
+  <section class="grid">
+    <div class="card full" id="c-trend">
+      <div><h2>Monthly revenue and profit</h2><div class="sub">Sales spike every September, November and December. Those three months bring in 43% of the year's revenue.</div></div>
+      <div class="legend"><span><i class="sw" style="background:var(--rev)"></i>Revenue</span><span><i class="sw" style="background:var(--pro)"></i>Profit</span></div>
+      <div class="chart"></div>
+    </div>
+    <div class="card" id="c-region">
+      <div><h2>Revenue and profit by region</h2><div class="sub">Central's sales are similar to the South's, but its margin is the lowest.</div></div>
+      <div class="legend"><span><i class="sw" style="background:var(--rev)"></i>Revenue</span><span><i class="sw" style="background:var(--pro)"></i>Profit</span></div>
+      <div class="chart"></div>
+    </div>
+    <div class="card" id="c-discount">
+      <div><h2>Profit margin by discount level</h2><div class="sub">Margin goes negative once the discount passes 20%.</div></div>
+      <div class="chart"></div>
+    </div>
+    <div class="card" id="c-products">
+      <div><h2>Top 10 products by revenue</h2><div class="sub">Products marked with a red dot lost money overall.</div></div>
+      <div class="chart"></div>
+    </div>
+    <div class="card" id="c-subcat">
+      <div><h2>Profit by sub-category</h2><div class="sub">Tables, Bookcases and Supplies lose money. Machines barely break even.</div></div>
+      <div class="chart"></div>
+    </div>
+    <div class="card" id="c-states">
+      <div><h2>The 10 least profitable states</h2><div class="sub">Average discount shown next to each state.</div></div>
+      <div class="chart"></div>
+    </div>
+    <div class="card" id="c-returns">
+      <div><h2>Return rate by region</h2><div class="sub">Share of orders with at least one returned item.</div></div>
+      <div class="chart"></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <div>Data: Tableau "Sample – Superstore" (public dataset, as published on Kaggle). Cleaned in SQLite: split the stacked Orders / People / Returns sheets, removed duplicate return rows (800 → 296 orders), converted dates to ISO format, and restored ZIP codes that lost their leading zero.</div>
+    <div>Cross-filtering: the region charts ignore the Region filter and highlight the selected region instead.</div>
+  </footer>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const D = DATA.dims, ROWS = DATA.rows;
+const NS = "http://www.w3.org/2000/svg";
+const state = { year: "All", region: "All", category: "All" };
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const BANDS = ["0%","1-10%","11-20%","21-30%","31-50%",">50%"];
+
+const money = (v, d) => {
+  const a = Math.abs(v), s = v < 0 ? "−$" : "$";
+  if (a >= 1e6) return s + (a / 1e6).toFixed(2) + "M";
+  if (a >= 1e3) return s + (a / 1e3).toFixed(d ?? (a >= 1e5 ? 0 : 1)) + "K";
+  return s + a.toFixed(0);
+};
+const pct = v => (v < 0 ? "−" : "") + Math.abs(v).toFixed(1) + "%";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function text(parent, x, y, str, attrs = {}) { const t = el("text", { x, y, ...attrs }, parent); t.textContent = str; return t; }
+// Bar with 4px rounded data end and square baseline end
+function bar(g, x0, x1, y, h, fill, horizontal = true) {
+  const r = Math.min(4, Math.abs(x1 - x0) / 2, h / 2);
+  let d;
+  if (horizontal) {
+    if (x1 >= x0) d = `M${x0},${y}H${x1 - r}Q${x1},${y} ${x1},${y + r}V${y + h - r}Q${x1},${y + h} ${x1 - r},${y + h}H${x0}Z`;
+    else d = `M${x0},${y}H${x1 + r}Q${x1},${y} ${x1},${y + r}V${y + h - r}Q${x1},${y + h} ${x1 + r},${y + h}H${x0}Z`;
+  }
+  return el("path", { d, fill }, g);
+}
+function niceTicks(min, max, n = 4) {
+  const span = max - min || 1, step0 = span / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => span / s <= n) || mag * 10;
+  const lo = Math.floor(min / step) * step, hi = Math.ceil(max / step) * step, out = [];
+  for (let v = lo; v <= hi + step / 2; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+
+// Tooltip
+const tip = document.getElementById("tip");
+function showTip(e, title, rows) {
+  tip.innerHTML = `<div class="t">${esc(title)}</div>` + rows.map(([k, v, c]) =>
+    `<div class="r"><span>${c ? `<i class="sw" style="background:${c}"></i>` : ""}${esc(k)}</span><span>${esc(v)}</span></div>`).join("");
+  tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + w > innerWidth - 8) x = e.clientX - w - 14;
+  if (y + h > innerHeight - 8) y = e.clientY - h - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.hidden = true; };
+
+function tableView(card, headers, rows) {
+  let det = card.querySelector("details");
+  const open = det?.open;
+  det?.remove();
+  det = document.createElement("details");
+  det.open = !!open;
+  det.innerHTML = `<summary>View as table</summary><div class="tbl"><table><thead><tr>${headers.map(h => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${
+    rows.map(r => `<tr>${r.map(c => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  card.appendChild(det);
+}
+
+// ---------- Filtering & aggregation ----------
+function filtered(ignoreRegion = false) {
+  const y = state.year === "All" ? null : +state.year;
+  const r = state.region === "All" || ignoreRegion ? -1 : D.region.indexOf(state.region);
+  const c = state.category === "All" ? -1 : D.category.indexOf(state.category);
+  return ROWS.filter(row => (y === null || Math.floor(row[0] / 100) === y) && (r < 0 || row[1] === r) && (c < 0 || row[2] === c));
+}
+function groupBy(rows, keyFn) {
+  const m = new Map();
+  for (const row of rows) {
+    const k = keyFn(row);
+    let a = m.get(k);
+    if (!a) m.set(k, a = { sales: 0, profit: 0, n: 0, orders: new Set(), returned: new Set() });
+    a.sales += row[7]; a.profit += row[8]; a.n++; a.orders.add(row[6]); if (row[10]) a.returned.add(row[6]);
+  }
+  return m;
+}
+
+// ---------- Charts ----------
+function width(card) { return Math.max(280, card.querySelector(".chart").clientWidth); }
+
+function lineChart(card, rows) {
+  const box = card.querySelector(".chart"); box.innerHTML = "";
+  const g = groupBy(rows, r => r[0]);
+  // continuous month axis across the selected span
+  let months = [];
+  const years = state.year === "All" ? [2015, 2016, 2017, 2018] : [+state.year];
+  years.forEach(y => { for (let m = 1; m <= 12; m++) months.push(y * 100 + m); });
+  const pts = months.map(k => ({ k, s: g.get(k)?.sales || 0, p: g.get(k)?.profit || 0 }));
+  const W = width(card), H = Math.round(Math.min(300, Math.max(220, W * 0.3)));
+  const m = { t: 10, r: 14, b: 26, l: 52 };
+  const minP = Math.min(0, ...pts.map(d => d.p));
+  const all = niceTicks(0, Math.max(...pts.map(d => d.s)), 4);
+  const y0 = minP * 1.15, y1 = all[all.length - 1];
+  const ticks = all.filter(t => t >= y0);
+  const X = i => m.l + (pts.length === 1 ? 0 : i * (W - m.l - m.r) / (pts.length - 1));
+  const Y = v => m.t + (1 - (v - y0) / (y1 - y0)) * (H - m.t - m.b);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Monthly revenue and profit line chart" }, box);
+  ticks.forEach(t => { el("line", { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), class: t === 0 ? "zero" : "gl" }, svg); text(svg, m.l - 8, Y(t) + 4, money(t, 0), { "text-anchor": "end", class: "axis" }); });
+  const step = W < 520 ? (pts.length > 12 ? 12 : 3) : (pts.length > 12 ? 6 : 1);
+  pts.forEach((d, i) => {
+    if (i % step) return;
+    const mo = d.k % 100, yr = Math.floor(d.k / 100);
+    text(svg, X(i), H - 8, pts.length > 12 ? `${MONTHS[mo - 1]} ’${String(yr).slice(2)}` : MONTHS[mo - 1], { "text-anchor": "middle", class: "axis" });
+  });
+  const path = key => pts.map((d, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(d[key]).toFixed(1)}`).join("");
+  el("path", { d: path("s") + `L${X(pts.length - 1)},${Y(0)}L${X(0)},${Y(0)}Z`, fill: "var(--rev)", opacity: 0.08 }, svg);
+  el("path", { d: path("s"), fill: "none", stroke: "var(--rev)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  el("path", { d: path("p"), fill: "none", stroke: "var(--pro)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+  const cross = el("line", { y1: m.t, y2: H - m.b, stroke: "var(--muted)", "stroke-width": 1, "stroke-dasharray": "3 3", visibility: "hidden" }, svg);
+  const dS = el("circle", { r: 4.5, fill: "var(--rev)", stroke: "var(--surface)", "stroke-width": 2, visibility: "hidden" }, svg);
+  const dP = el("circle", { r: 4.5, fill: "var(--pro)", stroke: "var(--surface)", "stroke-width": 2, visibility: "hidden" }, svg);
+  const hit = el("rect", { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, class: "hit" }, svg);
+  const move = e => {
+    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round((px - m.l) / ((W - m.l - m.r) / Math.max(1, pts.length - 1)))));
+    const d = pts[i];
+    [cross, dS, dP].forEach(n => n.setAttribute("visibility", "visible"));
+    cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i));
+    dS.setAttribute("cx", X(i)); dS.setAttribute("cy", Y(d.s)); dP.setAttribute("cx", X(i)); dP.setAttribute("cy", Y(d.p));
+    showTip(e, `${MONTHS[d.k % 100 - 1]} ${Math.floor(d.k / 100)}`, [["Revenue", money(d.s), "var(--rev)"], ["Profit", money(d.p), "var(--pro)"], ["Margin", d.s ? pct(100 * d.p / d.s) : "–"]]);
+  };
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerleave", () => { [cross, dS, dP].forEach(n => n.setAttribute("visibility", "hidden")); hideTip(); });
+  tableView(card, ["Month", "Revenue", "Profit", "Margin"], pts.map(d => [`${MONTHS[d.k % 100 - 1]} ${Math.floor(d.k / 100)}`, money(d.s), money(d.p), d.s ? pct(100 * d.p / d.s) : "–"]));
+}
+
+/* Horizontal bar chart. items: {label, values:[...], tip:[[k,v,c]], mark?, note?, dim?}
+   series: [{color}] or colorFn for sign-based (diverging) single-series bars. */
+function hbar(card, items, opts) {
+  const box = card.querySelector(".chart"); box.innerHTML = "";
+  if (!items.length) { box.innerHTML = `<p class="sub">No sales match these filters.</p>`; return; }
+  const W = width(card), nS = items[0].values.length;
+  const barH = nS > 1 ? 11 : 16, rowH = nS * barH + (nS - 1) * 2 + 12;
+  const labelW = Math.min(opts.labelW || 150, W * 0.42), valW = opts.valW || 58;
+  const m = { t: 4, r: 8, b: 22 };
+  const H = m.t + items.length * rowH + m.b;
+  const vals = items.flatMap(d => d.values);
+  const ticks = niceTicks(Math.min(0, ...vals), Math.max(0, ...vals), W < 420 ? 3 : 4);
+  const x0 = labelW, x1 = W - m.r - valW, lo = ticks[0], hi = ticks[ticks.length - 1];
+  const X = v => x0 + (v - lo) / (hi - lo) * (x1 - x0);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria }, box);
+  ticks.forEach(t => {
+    el("line", { x1: X(t), x2: X(t), y1: m.t, y2: H - m.b, class: t === 0 ? "zero" : "gl" }, svg);
+    text(svg, X(t), H - 6, opts.fmtAxis(t), { "text-anchor": "middle", class: "axis" });
+  });
+  const maxChars = Math.floor((labelW - 18) / 6.4);
+  items.forEach((d, i) => {
+    const y = m.t + i * rowH + 6, gr = el("g", d.dim ? { class: "dim" } : {}, svg);
+    const lbl = d.label.length > maxChars ? d.label.slice(0, maxChars - 1) + "…" : d.label;
+    const ly = y + (nS * barH + (nS - 1) * 2) / 2 + 4;
+    text(gr, d.mark ? labelW - 18 : labelW - 8, ly, lbl, { "text-anchor": "end", fill: "var(--ink)" });
+    if (d.mark) el("circle", { cx: labelW - 9, cy: ly - 4, r: 3.5, fill: "var(--neg)" }, gr);
+    d.values.forEach((v, j) => {
+      const by = y + j * (barH + 2);
+      const fill = opts.series ? opts.series[j] : (v < 0 ? "var(--neg)" : "var(--pos)");
+      bar(gr, X(0), X(v), by, barH, fill);
+    });
+    const vText = opts.fmtVal(d);
+    text(gr, W - m.r, ly, vText, { "text-anchor": "end", fill: d.values[d.values.length - 1] < 0 && !opts.series ? "var(--neg-ink)" : "var(--ink)" });
+    const hit = el("rect", { x: 0, y: y - 6, width: W, height: rowH, class: "hit" }, gr);
+    hit.addEventListener("pointermove", e => showTip(e, d.label, d.tip));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+}
+
+function render() {
+  const rows = filtered(), rowsAllReg = filtered(true);
+  // KPIs
+  const tot = groupBy(rows, () => 0).get(0) || { sales: 0, profit: 0, orders: new Set(), returned: new Set() };
+  const kp = [
+    ["Revenue", money(tot.sales), `${rows.length.toLocaleString()} order lines`],
+    ["Profit", money(tot.profit), "after discounts"],
+    ["Profit margin", tot.sales ? pct(100 * tot.profit / tot.sales) : "–", "profit ÷ revenue"],
+    ["Orders", tot.orders.size.toLocaleString(), `avg ${tot.orders.size ? money(tot.sales / tot.orders.size) : "–"} per order`],
+    ["Return rate", tot.orders.size ? pct(100 * tot.returned.size / tot.orders.size) : "–", `${tot.returned.size} orders returned`],
+  ];
+  document.getElementById("kpis").innerHTML = kp.map(([k, v, d]) => `<div class="kpi"><div class="eyebrow">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join("");
+
+  lineChart(document.getElementById("c-trend"), rows);
+
+  // Region (ignores region filter, highlights selection)
+  const reg = groupBy(rowsAllReg, r => r[1]);
+  const regItems = [...reg].map(([k, a]) => ({ label: D.region[k], s: a.sales, p: a.profit, a })).sort((a, b) => b.s - a.s);
+  const card = document.getElementById("c-region");
+  hbar(card, regItems.map(d => ({ label: d.label, values: [d.s, d.p], dim: state.region !== "All" && state.region !== d.label,
+    tip: [["Revenue", money(d.s), "var(--rev)"], ["Profit", money(d.p), "var(--pro)"], ["Margin", pct(100 * d.p / d.s)]] })),
+    { series: ["var(--rev)", "var(--pro)"], labelW: 80, valW: 52, fmtAxis: t => money(t, 0), fmtVal: d => pct(100 * d.values[1] / d.values[0]), aria: "Revenue and profit by region" });
+  tableView(card, ["Region", "Revenue", "Profit", "Margin"], regItems.map(d => [d.label, money(d.s), money(d.p), pct(100 * d.p / d.s)]));
+
+  // Discount bands
+  const bands = groupBy(rows, r => D.band[r[9]]);
+  const bItems = BANDS.filter(b => bands.has(b)).map(b => { const a = bands.get(b); return { label: b === "0%" ? "No discount" : b, m: 100 * a.profit / a.sales, a }; });
+  const cD = document.getElementById("c-discount");
+  hbar(cD, bItems.map(d => ({ label: d.label, values: [d.m], tip: [["Margin", pct(d.m)], ["Revenue", money(d.a.sales)], ["Profit", money(d.a.profit)], ["Order lines", d.a.n.toLocaleString()]] })),
+    { labelW: 96, fmtAxis: t => t + "%", fmtVal: d => pct(d.values[0]), aria: "Profit margin by discount band" });
+  tableView(cD, ["Discount", "Lines", "Revenue", "Profit", "Margin"], bItems.map(d => [d.label, d.a.n, money(d.a.sales), money(d.a.profit), pct(d.m)]));
+
+  // Top products
+  const prod = [...groupBy(rows, r => r[4])].map(([k, a]) => ({ label: D.product[k], a })).sort((a, b) => b.a.sales - a.a.sales).slice(0, 10);
+  const cP = document.getElementById("c-products");
+  hbar(cP, prod.map(d => ({ label: d.label, values: [d.a.sales], mark: d.a.profit < 0, tip: [["Revenue", money(d.a.sales)], ["Profit", money(d.a.profit)], ["Margin", pct(100 * d.a.profit / d.a.sales)]] })),
+    { series: ["var(--rev)"], labelW: 230, fmtAxis: t => money(t, 0), fmtVal: d => money(d.values[0]), aria: "Top 10 products by revenue" });
+  tableView(cP, ["Product", "Revenue", "Profit"], prod.map(d => [d.label, money(d.a.sales), money(d.a.profit)]));
+
+  // Sub-category profit
+  const sub = [...groupBy(rows, r => r[3])].map(([k, a]) => ({ label: D.sub[k], a })).sort((a, b) => a.a.profit - b.a.profit);
+  const cS = document.getElementById("c-subcat");
+  hbar(cS, sub.map(d => ({ label: d.label, values: [d.a.profit], tip: [["Profit", money(d.a.profit)], ["Revenue", money(d.a.sales)], ["Margin", pct(100 * d.a.profit / d.a.sales)]] })),
+    { labelW: 96, valW: 60, fmtAxis: t => money(t, 0), fmtVal: d => money(d.values[0]), aria: "Profit by sub-category" });
+  tableView(cS, ["Sub-category", "Revenue", "Profit", "Margin"], sub.map(d => [d.label, money(d.a.sales), money(d.a.profit), pct(100 * d.a.profit / d.a.sales)]));
+
+  // Least profitable states, with average discount
+  const st = new Map();
+  for (const r of rows) { let a = st.get(r[5]); if (!a) st.set(r[5], a = { s: 0, p: 0, disc: 0, n: 0, region: r[1] }); a.s += r[7]; a.p += r[8]; a.disc += r[11]; a.n++; }
+  const stItems = [...st].map(([k, a]) => ({ label: D.state[k], ...a, d: 100 * a.disc / a.n })).sort((a, b) => a.p - b.p).slice(0, 10);
+  const cSt = document.getElementById("c-states");
+  hbar(cSt, stItems.map(d => ({ label: `${d.label} · ${Math.round(d.d)}%`, values: [d.p], tip: [["Profit", money(d.p)], ["Revenue", money(d.s)], ["Region", D.region[d.region]], ["Avg discount", pct(d.d)]] })),
+    { labelW: 170, valW: 60, fmtAxis: t => money(t, 0), fmtVal: d => money(d.values[0]), aria: "Least profitable states" });
+  tableView(cSt, ["State", "Region", "Revenue", "Profit", "Avg discount"], stItems.map(d => [d.label, D.region[d.region], money(d.s), money(d.p), pct(d.d)]));
+
+  // Returns by region
+  const rr = [...groupBy(rowsAllReg, r => r[1])].map(([k, a]) => ({ label: D.region[k], rate: 100 * a.returned.size / a.orders.size, a })).sort((a, b) => b.rate - a.rate);
+  const cR = document.getElementById("c-returns");
+  hbar(cR, rr.map(d => ({ label: d.label, values: [d.rate], dim: state.region !== "All" && state.region !== d.label, tip: [["Return rate", pct(d.rate)], ["Returned orders", d.a.returned.size], ["All orders", d.a.orders.size]] })),
+    { series: ["var(--rev)"], labelW: 80, fmtAxis: t => t + "%", fmtVal: d => pct(d.values[0]), aria: "Return rate by region" });
+  tableView(cR, ["Region", "Orders", "Returned", "Return rate"], rr.map(d => [d.label, d.a.orders.size, d.a.returned.size, pct(d.rate)]));
+}
+
+// ---------- Filters ----------
+function buildSeg(id, key, options) {
+  const host = document.getElementById(id);
+  host.innerHTML = options.map(o => `<button type="button" data-v="${esc(o)}" aria-pressed="${state[key] === o}">${esc(o)}</button>`).join("");
+  host.onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    state[key] = b.dataset.v;
+    host.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    save(); render();
+  };
+}
+function save() { try { localStorage.setItem("ss-filters", JSON.stringify(state)); } catch (e) {} }
+try { Object.assign(state, JSON.parse(localStorage.getItem("ss-filters") || "{}")); } catch (e) {}
+function buildAll() {
+  buildSeg("f-year", "year", ["All", "2015", "2016", "2017", "2018"]);
+  buildSeg("f-region", "region", ["All", "West", "East", "Central", "South"]);
+  buildSeg("f-category", "category", ["All", "Furniture", "Office Supplies", "Technology"]);
+}
+document.getElementById("reset").onclick = () => { state.year = state.region = state.category = "All"; save(); buildAll(); render(); };
+buildAll(); render();
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 120); });
+</script>
